@@ -1,0 +1,72 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wrestling Jeopardy - Admin Editor</title>
+<style>
+body{font-family:system-ui,Segoe UI,Roboto; margin:12px; background:#fafafa;color:#111}
+h1{font-size:20px}
+.field{margin-bottom:8px}
+textarea{width:100%;min-height:60px;font-family:monospace}
+.btn{padding:8px 10px;border-radius:6px;background:#222;color:#fff;border:none;cursor:pointer}
+.container{max-width:980px;margin:0 auto}
+.category{background:white;padding:8px;border-radius:8px;margin-bottom:10px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+.small{font-size:13px;color:#555}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Admin — Edit Categories & Questions</h1>
+<div class="small">Make changes and click "Save to Local" to store them. Then click "Broadcast to Control/Game" to push changes live.</div>
+<div id="editor"></div>
+<p>
+  <button id="saveLocal" class="btn">Save to Local</button>
+  <button id="broadcast" class="btn" style="margin-left:8px">Broadcast to Control/Game</button>
+  <button id="loadDefault" class="btn" style="margin-left:8px">Load Default data.json</button>
+</p>
+</div>
+
+<script>
+const channel = new BroadcastChannel('wrestle-jeopardy-channel');
+let data = null;
+
+function loadData(){
+  const saved = localStorage.getItem('wrestle-jeopardy-data');
+  if(saved) data = JSON.parse(saved);
+  else fetch('data.json').then(r=>r.json()).then(d=>{data=d; localStorage.setItem('wrestle-jeopardy-data', JSON.stringify(d)); renderEditor();});
+  if(data) renderEditor();
+}
+
+function renderEditor(){
+  const container = document.getElementById('editor'); container.innerHTML='';
+  data.categories.forEach((cat,ci)=>{
+    const div = document.createElement('div'); div.className='category';
+    const name = document.createElement('input'); name.value = cat.name; name.style.width='100%';
+    name.addEventListener('input', ()=>{ data.categories[ci].name = name.value; });
+    div.appendChild(name);
+    cat.questions.forEach((q,ri)=>{
+      const qbox = document.createElement('div'); qbox.className='field';
+      qbox.innerHTML = '<div><label>Value: <input type="number" value="'+q.value+'" id="v_'+ci+'_'+ri+'" /></label> <label style="margin-left:8px"><input type="checkbox" id="dd_'+ci+'_'+ri+'" '+(q.daily_double?'checked':'')+' /> Hidden Double Team</label></div>\
+      <div><textarea id="cl_'+ci+'_'+ri+'">'+q.clue.replace(/</g,'&lt;')+'</textarea></div>\
+      <div><textarea id="ans_'+ci+'_'+ri+'">'+q.answer.replace(/</g,'&lt;')+'</textarea></div>';
+      div.appendChild(qbox);
+      // listeners
+      qbox.querySelector('#v_'+ci+'_'+ri).addEventListener('input', (e)=>{ data.categories[ci].questions[ri].value = Number(e.target.value); });
+      qbox.querySelector('#dd_'+ci+'_'+ri).addEventListener('change', (e)=>{ data.categories[ci].questions[ri].daily_double = e.target.checked; });
+      qbox.querySelector('#cl_'+ci+'_'+ri).addEventListener('input', (e)=>{ data.categories[ci].questions[ri].clue = e.target.value; });
+      qbox.querySelector('#ans_'+ci+'_'+ri).addEventListener('input', (e)=>{ data.categories[ci].questions[ri].answer = e.target.value; });
+    });
+    container.appendChild(div);
+  });
+}
+
+document.getElementById('saveLocal').addEventListener('click', ()=>{ localStorage.setItem('wrestle-jeopardy-data', JSON.stringify(data)); alert('Saved to localStorage'); });
+document.getElementById('broadcast').addEventListener('click', ()=>{ localStorage.setItem('wrestle-jeopardy-data', JSON.stringify(data)); channel.postMessage({type:'updateData', data: data}); alert('Broadcasted to control/game (same origin pages)'); });
+document.getElementById('loadDefault').addEventListener('click', ()=>{ fetch('data.json').then(r=>r.json()).then(d=>{data=d; localStorage.setItem('wrestle-jeopardy-data', JSON.stringify(d)); renderEditor();}); });
+
+loadData();
+</script>
+</body>
+</html>

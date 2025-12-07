@@ -1,0 +1,80 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wrestling Jeopardy - Buzzer</title>
+<style>
+body{font-family:system-ui,Segoe UI,Roboto;margin:12px;background:#0b0b0b;color:#fff}
+.container{max-width:720px;margin:0 auto;text-align:center}
+input,button{padding:12px;margin:8px;width:90%;font-size:18px;border-radius:8px;border:none}
+.buzz{background:#c62828;color:#fff;font-weight:700;font-size:24px}
+.status{margin-top:12px;font-size:18px;color:#ddd}
+.teamLabel{font-size:20px;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Wrestling Jeopardy - Buzzer</h1>
+  <div>
+    <input id="teamName" placeholder="Enter your player/team name (will show on host screen)" />
+    <input id="teamId" placeholder="(optional) Team ID or number" />
+    <button id="connect">Connect</button>
+  </div>
+  <div id="controls" style="display:none">
+    <button id="buzz" class="buzz">BUZZ</button>
+    <div class="status" id="status">Not buzzed</div>
+    <div class="small">Your buzz will show on the host control when accepted.</div>
+  </div>
+  <div style="margin-top:18px;color:#bbb;font-size:13px">
+    <strong>Note:</strong> Host must open control.html to accept the buzz. If you have issues, ask host to check Realtime Database rules.
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+if(typeof FIREBASE_CONFIG === 'undefined'){ alert('Please copy firebase-config.example.js to firebase-config.js and add your Firebase config as described in README.'); }
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+
+let teamName = '';
+let teamId = '';
+let connected = false;
+let myPushKey = null;
+
+document.getElementById('connect').addEventListener('click', ()=>{
+  teamName = document.getElementById('teamName').value.trim() || 'Player';
+  teamId = document.getElementById('teamId').value.trim() || '';
+  connected = true;
+  document.getElementById('controls').style.display = 'block';
+  document.getElementById('connect').style.display = 'none';
+  document.getElementById('teamName').style.display = 'none';
+  document.getElementById('teamId').style.display = 'none';
+  document.getElementById('status').textContent = 'Ready to buzz as ' + teamName;
+});
+
+document.getElementById('buzz').addEventListener('click', async ()=>{
+  if(!connected) return alert('Connect first and enter team name.');
+  // push a buzz entry
+  const entry = { name: teamName, id: teamId, ts: Date.now() };
+  const ref = db.ref('buzzes').push();
+  myPushKey = ref.key;
+  await ref.set(entry);
+  document.getElementById('status').textContent = 'Buzz sent — waiting for host';
+  // listen for result
+  db.ref('currentBuzz').on('value', snap => {
+    const cur = snap.val();
+    if(!cur) return;
+    if(cur.key === myPushKey){
+      document.getElementById('status').textContent = 'You were FIRST!';
+    } else {
+      document.getElementById('status').textContent = 'Locked out — ' + (cur.name || 'Someone') + ' got it';
+    }
+  });
+});
+</script>
+</body>
+</html>

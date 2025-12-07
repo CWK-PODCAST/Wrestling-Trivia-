@@ -1,0 +1,133 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wrestling Jeopardy - Game Board</title>
+<style>
+:root{--bg:#0b0b0b;--tile:#1a1a1a;--accent:#c62828;--text:#fff}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Helvetica,sans-serif}
+.header{padding:10px;text-align:center;border-bottom:4px solid #222}
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:12px;max-width:1600px;margin:12px auto}
+.category{background:var(--tile);padding:14px;text-align:center;font-weight:700;font-size:20px;border-radius:8px}
+.tile{background:linear-gradient(180deg,#111,#222);padding:20px;height:110px;display:flex;align-items:center;justify-content:center;font-size:28px;border-radius:8px;cursor:pointer;user-select:none;position:relative}
+.tile.revealed{background:#080808;color:#fff;cursor:default}
+.clueBox{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#0f0f0f;padding:20px;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,0.8);display:none;max-width:90%;width:900px}
+.clueText{font-size:20px;margin-bottom:12px}
+.answerText{font-size:18px;color:#ddd;display:none;margin-top:8px}
+.controls{position:fixed;right:16px;top:16px;background:#111;padding:8px;border-radius:8px}
+.small{font-size:12px;color:#bbb}
+.daily{position:absolute;left:6px;top:6px;background:var(--accent);padding:4px 6px;border-radius:4px;font-size:12px;display:none}
+.daily.visible{display:block}
+.footer{padding:8px;text-align:center;color:#bbb;font-size:13px}
+.banner{position:fixed;left:50%;transform:translateX(-50%);top:8px;background:#c62828;padding:8px 14px;border-radius:8px;font-weight:700;display:none}
+</style>
+</head>
+<body>
+<div class="header"><h1 id="title">Wrestling Jeopardy</h1></div>
+<div id="board" class="board" aria-live="polite"></div>
+
+<div class="clueBox" id="clueBox" role="dialog" aria-modal="true">
+  <div class="clueText" id="clueText"></div>
+  <div class="small">Click the clue to reveal the answer. Click outside or press ESC to close.</div>
+  <div class="answerText" id="answerText"></div>
+</div>
+
+<div class="banner" id="banner"></div>
+
+<div class="controls">
+  <div class="small">Status: <span id="status">Waiting</span></div>
+  <div style="margin-top:6px"><button id="resetBtn">Reset Board</button></div>
+</div>
+
+<div class="footer">Use control.html to reveal clues (control.html). To edit categories/questions open <code>admin.html</code>.</div>
+
+<script>
+const channel = new BroadcastChannel('wrestle-jeopardy-channel');
+let data = null;
+const boardEl = document.getElementById('board');
+const titleEl = document.getElementById('title');
+const clueBox = document.getElementById('clueBox');
+const clueText = document.getElementById('clueText');
+const answerText = document.getElementById('answerText');
+const statusEl = document.getElementById('status');
+const banner = document.getElementById('banner');
+
+function loadData(){
+  const saved = localStorage.getItem('wrestle-jeopardy-data');
+  if(saved) { data = JSON.parse(saved); buildBoard(); }
+  else fetch('data.json').then(r=>r.json()).then(d=>{data=d; localStorage.setItem('wrestle-jeopardy-data', JSON.stringify(d)); buildBoard();});
+}
+
+function buildBoard(){
+  boardEl.innerHTML = '';
+  titleEl.textContent = data.title || 'Wrestling Jeopardy';
+  const cols = data.categories.length;
+  data.categories.forEach(cat=>{
+    const c = document.createElement('div'); c.className='category'; c.textContent = cat.name; boardEl.appendChild(c);
+  });
+  const rows = data.categories[0].questions.length;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const q = data.categories[c].questions[r];
+      const tile = document.createElement('div');
+      tile.className='tile';
+      tile.dataset.cat = c;
+      tile.dataset.row = r;
+      tile.dataset.value = q.value;
+      tile.innerHTML = '<div class="daily" id="daily-'+c+'-'+r+'">Double Team</div><div class="val">'+q.value+'</div>';
+      if(q.revealed) tile.classList.add('revealed');
+      tile.addEventListener('click', ()=>{ showClue(c,r); });
+      boardEl.appendChild(tile);
+      if(q.daily_double){
+        const d = tile.querySelector('.daily');
+        d.classList.add('visible');
+      }
+    }
+  }
+}
+
+function showClue(c,r){
+  const q = data.categories[c].questions[r];
+  if(!q) return;
+  clueText.innerHTML = '<strong>'+data.categories[c].name+' — $'+q.value+'</strong><hr>' + q.clue;
+  answerText.style.display='none';
+  answerText.innerHTML = q.answer;
+  clueBox.style.display='block';
+  if(q.daily_double){
+    clueText.innerHTML = '<strong>Hidden Double Team! (Daily Double)</strong><hr>' + clueText.innerHTML;
+  }
+}
+
+function hideClue(){ clueBox.style.display='none'; }
+
+channel.onmessage = (ev) => {
+  const msg = ev.data;
+  statusEl.textContent = msg.type || 'Received';
+  if(msg.type === 'reveal'){
+    showClue(msg.cat,msg.row);
+    // mark revealed locally
+    const saved = JSON.parse(localStorage.getItem('wrestle-jeopardy-data'));
+    saved.categories[msg.cat].questions[msg.row].revealed = true;
+    localStorage.setItem('wrestle-jeopardy-data', JSON.stringify(saved));
+  } else if(msg.type === 'revealAnswer'){ answerText.style.display='block'; }
+  else if(msg.type === 'buzzAccepted'){ banner.textContent = msg.team + ' has buzzed first!'; banner.style.display='block'; setTimeout(()=>{ banner.style.display='none'; }, 5000); }
+  else if(msg.type === 'acceptedBuzz'){ /* reserved */ }
+  else if(msg.type === 'reset'){ loadData(); statusEl.textContent='Reset'; }
+  else if(msg.type === 'updateData'){ localStorage.setItem('wrestle-jeopardy-data', JSON.stringify(msg.data)); data = msg.data; buildBoard(); }
+};
+
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  localStorage.removeItem('wrestle-jeopardy-data');
+  statusEl.textContent='Reset locally';
+  loadData();
+});
+
+window.addEventListener('click', (e)=>{ if(e.target===clueBox) hideClue(); });
+window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') hideClue(); if(e.key==='a') answerText.style.display='block'; });
+
+loadData();
+</script>
+</body>
+</html>

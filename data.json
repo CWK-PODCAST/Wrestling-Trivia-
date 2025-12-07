@@ -1,0 +1,55 @@
+{
+  "title": "Wrestling Jeopardy",
+  "categories": [
+    {
+      "name": "Legends",
+      "questions": [
+        {"value":100,"clue":"The 'Nature Boy' who crossed into WCW in 1995.","answer":"Who is Ric Flair?","daily_double":false},
+        {"value":200,"clue":"The 'Heartbreak Kid' who led D-Generation X.","answer":"Who is Shawn Michaels?","daily_double":false},
+        {"value":300,"clue":"The wrestler known for the 'Stone Cold Stunner'.","answer":"Who is Stone Cold Steve Austin?","daily_double":false},
+        {"value":400,"clue":"This wrestler formed the 'Four Horsemen'.","answer":"Who is Ric Flair?","daily_double":false},
+        {"value":500,"clue":"Long-time WWE Undertaker manager and kayfabe family member.","answer":"Who is Paul Bearer?","daily_double":false}
+      ]
+    },
+    {
+      "name": "Finishing Moves",
+      "questions": [
+        {"value":100,"clue":"John Cena's signature move that made him famous.","answer":"What is the Attitude Adjustment?","daily_double":false},
+        {"value":200,"clue":"The Rock's iconic facebuster finishing move (electrified crowd).","answer":"What is the Rock Bottom?","daily_double":false},
+        {"value":300,"clue":"Kurt Angle's Olympic-inspired suplex to submission.","answer":"What is the Ankle Lock?","daily_double":false},
+        {"value":400,"clue":"Shawn Michaels' high-flying elbow from the top rope.","answer":"What is Sweet Chin Music?","daily_double":false},
+        {"value":500,"clue":"Bret Hart's sharpshooter variant used to make opponents tap.","answer":"What is the Sharpshooter?","daily_double":false}
+      ]
+    },
+    {
+      "name": "Pay-Per-Views",
+      "questions": [
+        {"value":100,"clue":"WWE's biggest annual event.","answer":"What is WrestleMania?","daily_double":false},
+        {"value":200,"clue":"Summer-themed WWE PPV often in July/August.","answer":"What is SummerSlam?","daily_double":false},
+        {"value":300,"clue":"WWF's 1997 controversial event held in Montreal.","answer":"What is Survivor Series?","daily_double":false},
+        {"value":400,"clue":"A Survivor Series mainstay: elimination-style team match.","answer":"What is Survivor Series match?","daily_double":false},
+        {"value":500,"clue":"The 1998 WWF PPV where Austin returned to the ring in US.","answer":"What is British Bulldog?","daily_double":false}
+      ]
+    },
+    {
+      "name": "Tag Teams",
+      "questions": [
+        {"value":100,"clue":"This duo were 'The Rock' & 'Mankind' in the late 1990s pairing.","answer":"What is The Rock and Mankind?","daily_double":false},
+        {"value":200,"clue":"They were the twin tag team phenoms in WWE.","answer":"Who are The Usos?","daily_double":false},
+        {"value":300,"clue":"Known for the catchphrase 'Too Sweet'.","answer":"Who are The Young Bucks / NWO?","daily_double":false},
+        {"value":400,"clue":"The high-flying team 'The Hardy Boyz' specialized in ladders.","answer":"Who are The Hardy Boyz?","daily_double":false},
+        {"value":500,"clue":"The team made of the 'Heartbreak Kid' at times.","answer":"Who is Shawn Michaels & Diesel?","daily_double":false}
+      ]
+    },
+    {
+      "name": "Modern Era",
+      "questions": [
+        {"value":100,"clue":"The 'Beast' who dominated WWE and AEW.","answer":"Who is Brock Lesnar?","daily_double":false},
+        {"value":200,"clue":"This high-flyer won multiple Cruiserweight championships.","answer":"Who is Rey Mysterio?","daily_double":false},
+        {"value":300,"clue":"Known for the finisher 'KO Punch'.","answer":"Who is Kevin Owens?","daily_double":false},
+        {"value":400,"clue":"Wrestler who performs the 'Phenomenal Forearm'.","answer":"Who is AJ Styles?","daily_double":false},
+        {"value":500,"clue":"The leader of The Bloodline faction.","answer":"Who is Roman Reigns?","daily_double":false}
+      ]
+    }
+  ]
+}

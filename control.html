@@ -1,0 +1,148 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wrestling Jeopardy - Control (with Buzzers)</title>
+<style>
+body{font-family:system-ui,Segoe UI,Roboto;margin:12px;background:#0f0f0f;color:#fff}
+.header{display:flex;justify-content:space-between;align-items:center}
+h1{margin:0}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
+.card{background:#111;padding:10px;border-radius:8px}
+.catHeader{font-weight:700;margin-bottom:6px;color:#ddd}
+.qbtn{display:block;width:100%;padding:10px;margin:6px 0;border-radius:6px;border:1px solid #222;background:#0b0b0b;color:#fff;cursor:pointer;text-align:left}
+.buzzArea{margin-top:12px;background:#111;padding:8px;border-radius:8px}
+.scoreBoard{display:flex;gap:12px;margin-top:8px}
+.team{background:#121212;padding:8px;border-radius:8px;min-width:120px;text-align:center}
+.btn{padding:8px 10px;border-radius:6px;background:#c62828;border:none;color:#fff;cursor:pointer}
+.small{color:#bbb;font-size:13px}
+.current{font-size:18px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Wrestling Jeopardy — Control Panel</h1>
+  <div class="small">Open <code>buzzer.html</code> for players to connect. Realtime via Firebase.</div>
+</div>
+
+<div class="scoreBoard" id="scoreBoard"></div>
+
+<div class="buzzArea card">
+  <div class="small">Latest buzz:</div>
+  <div class="current" id="currentBuzz">—</div>
+  <div style="margin-top:8px">
+    <button id="acceptBuzz" class="btn">Assign Question to Buzzing Team</button>
+    <button id="resetBuzz" class="btn" style="margin-left:8px;background:#444">Reset Buzzers</button>
+  </div>
+</div>
+
+<div style="margin-top:12px" class="small">Questions (click to reveal on Game Board)</div>
+<div id="grid" class="grid"></div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+if(typeof FIREBASE_CONFIG === 'undefined'){ alert('Please copy firebase-config.example.js to firebase-config.js and add your Firebase config as described in README.'); }
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+
+let data = null;
+let current = null; // {key, name, id, ts}
+let scores = {}; // dynamic team scores
+
+function loadData(){
+  const saved = localStorage.getItem('wrestle-jeopardy-data');
+  if(saved) { data = JSON.parse(saved); buildGrid(); }
+  else fetch('data.json').then(r=>r.json()).then(d=>{data=d; localStorage.setItem('wrestle-jeopardy-data', JSON.stringify(d)); buildGrid();});
+}
+
+function buildGrid(){
+  const grid = document.getElementById('grid'); grid.innerHTML='';
+  data.categories.forEach((cat,ci)=>{
+    const col = document.createElement('div'); col.className='card';
+    const h = document.createElement('div'); h.className='catHeader'; h.textContent = cat.name; col.appendChild(h);
+    cat.questions.forEach((q,ri)=>{
+      const btn = document.createElement('button'); btn.className='qbtn';
+      btn.textContent = '$' + q.value + ' — ' + (q.clue.substring(0,60)) + (q.clue.length>60?'...':'');
+      if(q.daily_double) btn.style.borderColor = '#c62828';
+      btn.addEventListener('click', ()=>{ revealOnGame(ci,ri); });
+      col.appendChild(btn);
+    });
+    grid.appendChild(col);
+  });
+}
+
+function revealOnGame(c,r){
+  // broadcast to same-origin game.html via BroadcastChannel if open locally
+  const ch = new BroadcastChannel('wrestle-jeopardy-channel');
+  ch.postMessage({type:'reveal', cat:c, row:r});
+}
+
+function updateScoreBoard(){
+  const sb = document.getElementById('scoreBoard'); sb.innerHTML='';
+  Object.keys(scores).forEach(k=>{
+    const t = document.createElement('div'); t.className='team';
+    t.innerHTML = '<div style="font-weight:700">'+k+'</div><div style="font-size:20px">'+scores[k]+'</div><div style="margin-top:6px"><button onclick="changeScore(\''+k+'\',+100)'>+100</button> <button onclick="changeScore(\''+k+'\',-100)'>-100</button></div>';
+    sb.appendChild(t);
+  });
+}
+
+window.changeScore = function(team,delta){
+  scores[team] = (scores[team]||0) + delta;
+  updateScoreBoard();
+}
+
+document.getElementById('acceptBuzz').addEventListener('click', ()=>{
+  if(!current) return alert('No active buzz to accept');
+  // assign current to scoreboard (create entry if needed)
+  scores[current.name] = scores[current.name] || 0;
+  // host will decide question assignment and add/sub in UI using +/-
+  updateScoreBoard();
+  // notify game to maybe show a "team" accept - we simply reveal the answer button in game if needed
+  const ch = new BroadcastChannel('wrestle-jeopardy-channel');
+  ch.postMessage({type:'acceptedBuzz', team: current.name});
+});
+
+document.getElementById('resetBuzz').addEventListener('click', ()=>{
+  db.ref('buzzes').remove();
+  db.ref('currentBuzz').remove();
+  current = null;
+  document.getElementById('currentBuzz').textContent = '—';
+});
+
+// Listen for incoming buzzes, pick first using transaction on currentBuzz
+db.ref('buzzes').on('child_added', snap => {
+  const v = snap.val(); const key = snap.key;
+  // if no current, try to set it atomically
+  db.ref('currentBuzz').transaction(cur => {
+    if(cur === null){
+      return { key: key, name: v.name, id: v.id, ts: v.ts };
+    }
+    return; // abort - already set
+  }, (err, committed, snapshot) => {
+    if(err) console.error(err);
+    if(committed){
+      current = snapshot.val();
+      document.getElementById('currentBuzz').textContent = current.name + ' (team)';
+      // broadcast to game/control via BroadcastChannel too (same origin)
+      const ch = new BroadcastChannel('wrestle-jeopardy-channel');
+      ch.postMessage({type:'buzzAccepted', team: current.name});
+    } else {
+      // someone else already set it - ignore
+    }
+  });
+});
+
+// Watch currentBuzz changes (clears)
+db.ref('currentBuzz').on('value', snap => {
+  const v = snap.val();
+  if(!v){ current = null; document.getElementById('currentBuzz').textContent = '—'; }
+});
+
+loadData();
+</script>
+</body>
+</html>
